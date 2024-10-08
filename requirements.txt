@@ -1,0 +1,7 @@
+pandas
+numpy
+lifelines
+scipy
+matplotlib
+seaborn
+sqlalchemy
