@@ -18,5 +18,8 @@ jobs:
       - name: Run the real pipeline end-to-end (Kaplan-Meier survival analysis + dashboard)
         run: |
           python etl/clinical_etl.py
+          python etl/deidentify.py
           python analytics/statistical_tests.py
           python viz/dashboard_export.py
+      - name: Run the de-identification tests
+        run: pip install pytest && python -m pytest tests/ -v
