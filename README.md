@@ -8,7 +8,8 @@ survival curves and log-rank tests across three treatment arms, and a de-identif
 ## Highlights
 
 - **Ingestion and cleaning** of patient survival, vital signs and dosage records into SQLite.
-- **Survival analysis:** Kaplan-Meier curves and log-rank test statistics (SciPy) compare treatment efficacy across 3 cohorts.
+- **Survival analysis:** Kaplan-Meier curves and pairwise log-rank tests (lifelines) compare survival across 3 treatment arms; a chi-square test
+  (SciPy) compares adverse-event rates.
 - **De-identification:** `etl/deidentify.py` builds `patients_deidentified`, replacing patient IDs with keyed SHA-256 pseudonyms and exact
   ages with 5-year bands; covered by `tests/test_deidentify.py`.
 - **Reporting:** an outcomes dashboard (matplotlib preview below).
@@ -21,13 +22,14 @@ flowchart LR
     DB --> D[etl/deidentify.py<br/>pseudonyms, age bands] --> DB
     DB --> S[analytics/statistical_tests.py<br/>Kaplan-Meier, log-rank]
     S --> V[viz/dashboard_export.py]
+    DB --> T[viz/tableau_export.py<br/>de-identified CSVs] --> TP[Tableau Public dashboard]
 ```
 
 ![Dashboard preview](viz/matplotlib_dashboard_preview.png)
 
 ## Stack
 
-Python, SQL, SQLite, pandas, SciPy, Matplotlib, pytest, GitHub Actions.
+Python, SQL, SQLite, pandas, lifelines, SciPy, Matplotlib, Tableau Public, pytest, GitHub Actions.
 
 ## Run it
 
@@ -37,6 +39,7 @@ python etl/clinical_etl.py
 python etl/deidentify.py
 python analytics/statistical_tests.py
 python viz/dashboard_export.py
+python viz/tableau_export.py     # writes exports/*.csv for the Tableau dashboard
 python -m pytest tests/ -v
 ```
 
