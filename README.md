@@ -16,6 +16,8 @@ survival curves and log-rank tests across three treatment arms, and a de-identif
   preview below). `python make_report.py` refreshes the whole report in one process: **6.3 s instead of 15.5 s** for the four steps run
   as separate scripts, **60% faster**, with identical extracts (`python make_report.py --benchmark`, best of 3).
 
+Measured results, each with the question, the test and the decision: [docs/FINDINGS.md](docs/FINDINGS.md).
+
 ## Architecture
 
 ```mermaid
