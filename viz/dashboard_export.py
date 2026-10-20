@@ -5,6 +5,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from lifelines import KaplanMeierFitter
+from lifelines.statistics import pairwise_logrank_test
+from scipy.stats import chi2_contingency
 
 def load_data(db_path):
     """Loads patients, outcomes, and treatment log from SQLite database."""
@@ -51,7 +53,7 @@ def export_dashboard(df_outcomes, df_logs, save_path):
     # Main Header Title Block
     fig.text(0.04, 0.95, "ONCOLOGY TRIAL OUTCOMES & EFFICACY DASHBOARD", 
              fontsize=24, fontweight='bold', color='#1A365D')
-    fig.text(0.04, 0.92, "Phase II Clinical Trial Analysis: 3 Dosage Arms | 250 Patients | 1-Year Follow-up", 
+    fig.text(0.04, 0.92, f"Simulated Phase II trial: 3 dosage arms | {len(df_outcomes)} simulated patients | 1-year follow-up", 
              fontsize=14, fontstyle='italic', color='#4A5568')
     
     # --- Plot 1: Kaplan-Meier Survival Curves (Top Left) ---
@@ -75,12 +77,9 @@ def export_dashboard(df_outcomes, df_logs, save_path):
     ax1.legend(title="Treatment Arm", frameon=True, facecolor='white', framealpha=1, edgecolor='#E2E8F0')
     
     # Add a custom text box showing survival stats
-    text_survival = (
-        "Log-Rank p-values:\n"
-        "Control vs High: p < 0.0001\n"
-        "Control vs Low: p < 0.0001\n"
-        "Low vs High: p < 0.001"
-    )
+    lr = pairwise_logrank_test(df_outcomes['survival_days'], df_outcomes['group_name'], df_outcomes['event_observed']).summary
+    fmt_p = lambda p: "p < 0.0001" if p < 0.0001 else f"p = {p:.4f}" if p < 0.01 else f"p = {p:.3f}"
+    text_survival = "Log-rank tests:\n" + "\n".join(f"{a} vs {b}: {fmt_p(row['p'])}" for (a, b), row in lr.iterrows())
     props = dict(boxstyle='round', facecolor='white', alpha=0.9, edgecolor='#E2E8F0')
     ax1.text(0.05, 0.1, text_survival, transform=ax1.transAxes, fontsize=10, verticalalignment='bottom', bbox=props, color='#4A5568')
 
@@ -144,37 +143,40 @@ def export_dashboard(df_outcomes, df_logs, save_path):
     ).reset_index()
     
     # Format and present as a beautiful table/textbox card
-    ax4.text(0.05, 0.85, "Key Efficacy & Safety Endpoints Summary", fontsize=16, fontweight='bold', color='#1A365D')
+    ax4.text(0.05, 0.85, "Key Efficacy & Safety Endpoints Summary", fontsize=16, fontweight='bold', color='#1A365D', transform=ax4.transAxes)
     
     # Drawing horizontal card dividers
     ax4.plot([0.05, 0.95], [0.80, 0.80], color='#CBD5E0', transform=ax4.transAxes, linewidth=1.5)
     
     # Table headers
-    ax4.text(0.05, 0.72, "Treatment Group", fontsize=12, fontweight='bold', color='#2D3748')
-    ax4.text(0.35, 0.72, "Med. Survival (Days)", fontsize=12, fontweight='bold', color='#2D3748')
-    ax4.text(0.68, 0.72, "Mean Efficacy (%)", fontsize=12, fontweight='bold', color='#2D3748')
-    ax4.text(0.95, 0.72, "Adverse Event Rate", fontsize=12, fontweight='bold', color='#2D3748', ha='right')
+    ax4.text(0.05, 0.72, "Arm", fontsize=12, fontweight='bold', color='#2D3748', transform=ax4.transAxes)
+    ax4.text(0.28, 0.72, "Median survival", fontsize=12, fontweight='bold', color='#2D3748', transform=ax4.transAxes)
+    ax4.text(0.52, 0.72, "Mean shrinkage", fontsize=12, fontweight='bold', color='#2D3748', transform=ax4.transAxes)
+    ax4.text(0.95, 0.72, "Out-of-range BP", fontsize=12, fontweight='bold', color='#2D3748', ha='right', transform=ax4.transAxes)
     
     y_pos = 0.58
     for i, row in summary_stats.iterrows():
         color_arm = colors[row['group_name']]
-        ax4.text(0.05, y_pos, row['group_name'], fontsize=12, fontweight='semibold', color=color_arm)
+        ax4.text(0.05, y_pos, row['group_name'], fontsize=12, fontweight='semibold', color=color_arm, transform=ax4.transAxes)
         
         med_survival_val = "365+ (Censored)" if row['median_survival'] == 365 and row['group_name'] == 'High-dosage' else f"{int(row['median_survival'])} Days"
-        ax4.text(0.35, y_pos, med_survival_val, fontsize=12, color='#4A5568')
-        ax4.text(0.68, y_pos, f"{row['mean_efficacy']:.1f}%", fontsize=12, color='#4A5568')
-        ax4.text(0.95, y_pos, f"{row['ae_rate'] * 100:.1f}%", fontsize=12, color='#4A5568', ha='right')
+        ax4.text(0.28, y_pos, med_survival_val, fontsize=12, color='#4A5568', transform=ax4.transAxes)
+        ax4.text(0.52, y_pos, f"{row['mean_efficacy']:.1f}%", fontsize=12, color='#4A5568', transform=ax4.transAxes)
+        ax4.text(0.95, y_pos, f"{row['ae_rate'] * 100:.1f}%", fontsize=12, color='#4A5568', ha='right', transform=ax4.transAxes)
         y_pos -= 0.12
         
-    ax4.plot([0.05, 0.95], [y_pos + 0.04, y_pos + 0.04], color='#CBD5E0', transform=ax4.transAxes, linewidth=1.5)
+    ax4.plot([0.05, 0.95], [y_pos + 0.06, y_pos + 0.06], color='#CBD5E0', transform=ax4.transAxes, linewidth=1.5)
     
     # General findings text box
+    st = summary_stats.set_index('group_name')
+    _, ae_p, _, _ = chi2_contingency(pd.crosstab(df_stats['group_name'], df_stats['had_ae']))
+    pair_p = lambda x, y: lr.loc[[i for i in lr.index if set(i) == {x, y}][0], 'p']
     conclusions = (
-        "Key Findings:\n"
-        "• High-dosage arm demonstrated superior survival vs. Control (p < 0.0001) and Low-dosage (p < 0.001).\n"
-        "• Mean tumor shrinkage was significantly dosage-dependent (Control 3.4% vs. High 58.7%).\n"
-        "• Adverse event rates (hypotension/hypertension) were higher in High-dosage (22.9%) vs.\n"
-        "  Control (9.5%) but within clinically acceptable margins (Chi-Sq p = 0.043)."
+        "Key findings (computed from the simulated data):\n"
+        f"• High-dosage survival differs from Control ({fmt_p(pair_p('Control', 'High-dosage'))}) and Low-dosage ({fmt_p(pair_p('High-dosage', 'Low-dosage'))}).\n"
+        f"• Mean tumor shrinkage: Control {st.loc['Control', 'mean_efficacy']:.1f}%, Low {st.loc['Low-dosage', 'mean_efficacy']:.1f}%, High {st.loc['High-dosage', 'mean_efficacy']:.1f}%.\n"
+        f"• Out-of-range blood pressure events: High {st.loc['High-dosage', 'ae_rate'] * 100:.1f}% vs Control {st.loc['Control', 'ae_rate'] * 100:.1f}%\n"
+        f"  (chi-square across arms {fmt_p(ae_p)})."
     )
     ax4.text(0.05, 0.05, conclusions, fontsize=11, fontstyle='italic', color='#2D3748', transform=ax4.transAxes, bbox=dict(facecolor='white', alpha=0.5, edgecolor='#E2E8F0', boxstyle='round,pad=0.5'))
     
