@@ -1,0 +1,4 @@
+comparison,test_statistic,p_value
+Control vs High-dosage,23.78,1.08e-06
+Control vs Low-dosage,7.04,0.00796
+High-dosage vs Low-dosage,5.11,0.0238
