@@ -29,7 +29,7 @@ def load_data(db_path):
     return df_outcomes, df_logs
 
 def export_dashboard(df_outcomes, df_logs, save_path):
-    """Generates a premium clinical outcomes dashboard matching Tableau blue-gray aesthetics."""
+    """Generates a premium clinical outcomes dashboard rendered with matplotlib."""
     # Ensure directory exists
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     
@@ -184,12 +184,12 @@ def export_dashboard(df_outcomes, df_logs, save_path):
     # Save the dashboard
     plt.savefig(save_path, dpi=200, bbox_inches='tight')
     plt.close()
-    print(f"Premium Tableau-style dashboard saved successfully at {save_path}!")
+    print(f"Dashboard preview (matplotlib) saved successfully at {save_path}!")
 
 def main():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     db_path = os.path.join(base_dir, 'data', 'clinical_trials.db')
-    save_path = os.path.join(base_dir, 'viz', 'tableau_clinical_dashboard.png')
+    save_path = os.path.join(base_dir, 'viz', 'matplotlib_dashboard_preview.png')
     
     if not os.path.exists(db_path):
         print(f"Error: Database file not found at {db_path}. Please run clinical_etl.py first.")
